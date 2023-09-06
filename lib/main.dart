@@ -38,7 +38,7 @@ class _MyAppState extends State<MyApp> {
                 ),
           ),
           routes: {
-            '/': (context) => const HomePage(),
+            '/': (context) =>  HomePage(),
             // '/': (context) => AuthService().handleAuthState()
           },
         );
