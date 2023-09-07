@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:math';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:travel_admin/models/model.dart';
 
-Future<List<BusStops>> searchNearbyRestaurants(lat, lng) async {
+Future<List<BusStops>> searchNearbyBusStops(lat, lng) async {
   final apiKey = 'YOUR_API_KEY';
   final radius = 2000;
   final keyword = 'bus stop';
@@ -33,4 +35,21 @@ Future<List<BusStops>> searchNearbyRestaurants(lat, lng) async {
   } else {
     throw Exception('Failed to load bus_stations');
   }
+}
+
+// Function to check if a bus stop is on the polyline
+bool isBusStopOnPolyline(LatLng busStop, List<LatLng> polyline) {
+  for (int i = 0; i < polyline.length - 1; i++) {
+    final LatLng point1 = polyline[i];
+    final LatLng point2 = polyline[i + 1];
+
+    // Check if the bus stop is on the line segment between point1 and point2
+    if (busStop.latitude >= min(point1.latitude, point2.latitude) &&
+        busStop.latitude <= max(point1.latitude, point2.latitude) &&
+        busStop.longitude >= min(point1.longitude, point2.longitude) &&
+        busStop.longitude <= max(point1.longitude, point2.longitude)) {
+      return true;
+    }
+  }
+  return false;
 }

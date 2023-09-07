@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:travel_admin/models/model.dart';
+import 'package:travel_admin/services/service.dart';
 
 class Trip extends StatefulWidget {
   const Trip({super.key});
@@ -20,9 +22,11 @@ class _TripState extends State<Trip> {
     isFirst = true;
   }
 
+  Set<Marker> busStopMarkers = {};
   final Completer<GoogleMapController> _controller = Completer();
   late LatLng sourceLocation;
   late LatLng destination;
+  late List<BusStops> finalBusStopList = [];
   Map<String, dynamic> hashes = {};
 
   List<LatLng> polylineCoordinates = [];
@@ -58,6 +62,38 @@ class _TripState extends State<Trip> {
     if (result.points.isNotEmpty) {
       result.points.forEach((PointLatLng point) =>
           {polylineCoordinates.add(LatLng(point.latitude, point.longitude))});
+    }
+    //get bus stops
+    List<BusStops> busStops = [];
+    for (int i = 0; i < polylineCoordinates.length; i += 50) {
+      print(
+          ".......................................................iteration ${i + 1}................................................................");
+      busStops.addAll(await searchNearbyBusStops(
+          polylineCoordinates[i].latitude, polylineCoordinates[i].longitude));
+    }
+    // Clear existing bus stop markers
+    busStopMarkers.clear();
+    for (int i = 0; i < busStops.length; i++) {
+      final BusStops busStop = busStops[i];
+      final LatLng busStopLatLng = LatLng(busStop.lat, busStop.lng);
+
+      // Check if the bus stop is on the polyline
+      if (isBusStopOnPolyline(busStopLatLng, polylineCoordinates)) {
+        finalBusStopList.add(busStop);
+        busStopMarkers.add(
+          Marker(
+            markerId: MarkerId('busStop_$i'), // Unique marker ID
+            position: busStopLatLng,
+            infoWindow: InfoWindow(
+              title: 'Bus Stop',
+              snippet: busStop.name,
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueBlue,
+            ),
+          ),
+        );
+      }
     }
     polylineCoordinates.forEach((element) {
       print("${element.latitude} ++++ ${element.longitude}");
@@ -103,6 +139,7 @@ class _TripState extends State<Trip> {
                     markerId: const MarkerId('currentLocation'),
                     position: LatLng(currentLocation!.latitude!,
                         currentLocation!.longitude!)),
+                ...busStopMarkers,
               },
               polylines: {
                 Polyline(
