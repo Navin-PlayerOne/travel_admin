@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:travel_admin/services/service.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -18,15 +19,36 @@ class _HomePageState extends State<HomePage> {
   List<Location> startLocations = [];
   List<Location> destLocations = [];
 
+  int sourceIndex = -1;
+  int destIndex = -1;
+
   @override
   void initState() {
     super.initState();
   }
 
-  Future<List<String>> _getSuggestions(String query) async {
+  Future<List<String>> _getSuggestionsStart(String query) async {
     try {
       final location = await locationFromAddress(query);
       startLocations = location;
+      final locations = await Future.wait(location.map((coordinates) =>
+          placemarkFromCoordinates(
+              coordinates.latitude, coordinates.longitude)));
+
+      return locations
+          .map((location) =>
+              "${location.first.locality}, ${location.first.administrativeArea}, ${location.first.country}")
+          .toList();
+    } catch (e) {
+      print('Error fetching location suggestions: $e');
+      return [];
+    }
+  }
+
+  Future<List<String>> _getSuggestionsDest(String query) async {
+    try {
+      final location = await locationFromAddress(query);
+      destLocations = location;
       final locations = await Future.wait(location.map((coordinates) =>
           placemarkFromCoordinates(
               coordinates.latitude, coordinates.longitude)));
@@ -63,7 +85,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     suggestionsCallback: (pattern) async {
-                      final suggestions = await _getSuggestions(pattern);
+                      final suggestions = await _getSuggestionsStart(pattern);
                       setState(() {
                         startLocationSuggestions =
                             suggestions; // Update suggestion list
@@ -81,7 +103,7 @@ class _HomePageState extends State<HomePage> {
                     onSuggestionSelected: (suggestion) {
                       final index =
                           startLocationSuggestions.indexOf(suggestion);
-
+                      sourceIndex = index;
                       print('Selected suggestion index: $index');
                       print('Selected suggestion: $suggestion');
 
@@ -97,7 +119,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     suggestionsCallback: (pattern) async {
-                      final suggestions = await _getSuggestions(pattern);
+                      final suggestions = await _getSuggestionsDest(pattern);
                       setState(() {
                         destinationSuggestions =
                             suggestions; // Update suggestion list
@@ -114,7 +136,7 @@ class _HomePageState extends State<HomePage> {
                     },
                     onSuggestionSelected: (suggestion) {
                       final index = destinationSuggestions.indexOf(suggestion);
-
+                      destIndex = index;
                       print('Selected suggestion index: $index');
                       print('Selected suggestion: $suggestion');
 
@@ -124,7 +146,12 @@ class _HomePageState extends State<HomePage> {
                   SizedBox(height: 16.0),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(context);
+                      if (sourceIndex != -1 && destIndex != -1) {
+                        Navigator.pushNamed(context, '/trip', arguments: {
+                          'source': startLocations[sourceIndex],
+                          'dest': destLocations[destIndex]
+                        });
+                      }
                     },
                     child: Text('Start travel'),
                   ),

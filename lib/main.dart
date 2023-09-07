@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:travel_admin/pages/home.dart';
+import 'package:travel_admin/pages/trip.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +39,8 @@ class _MyAppState extends State<MyApp> {
                 ),
           ),
           routes: {
-            '/': (context) =>  HomePage(),
+            '/': (context) => HomePage(),
+            '/trip': (context) => Trip()
             // '/': (context) => AuthService().handleAuthState()
           },
         );

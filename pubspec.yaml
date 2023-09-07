@@ -41,8 +41,11 @@ dependencies:
   google_sign_in:
   cloud_firestore:
   google_maps_flutter: 
-  flutter_typeahead: ^3.2.3
-  geocoding: ^2.0.1
+  flutter_typeahead:
+  geocoding: 
+  flutter_svg:
+  location:
+  flutter_polyline_points:
 
 
 dev_dependencies:
