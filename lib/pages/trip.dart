@@ -30,7 +30,9 @@ class _TripState extends State<Trip> {
   Map<String, dynamic> hashes = {};
 
   List<LatLng> polylineCoordinates = [];
+  List<LatLng> polygonCoordinates = [];
   LocationData? currentLocation;
+  bool completed = false;
 
   void getCurrentLocation() async {
     Location location = Location();
@@ -63,6 +65,25 @@ class _TripState extends State<Trip> {
       result.points.forEach((PointLatLng point) =>
           {polylineCoordinates.add(LatLng(point.latitude, point.longitude))});
     }
+
+    //creating a polygon
+    // Create a polygon with extra width
+    // Generate polygon points
+    try {
+      List<Map<String, double>> polygonPoints =
+          generatePolygonPoints(polylineCoordinates);
+
+      // Print the polygon points
+      for (Map<String, double> point in polygonPoints) {
+        polygonCoordinates.add(LatLng(point['lat']!, point['lng']!));
+      }
+    } catch (e) {
+      print(e);
+    }
+    setState(() {
+      completed = true;
+    });
+
     //get bus stops
     List<BusStops> busStops = [];
     for (int i = 0; i < polylineCoordinates.length; i += 50) {
@@ -78,7 +99,7 @@ class _TripState extends State<Trip> {
       final LatLng busStopLatLng = LatLng(busStop.lat, busStop.lng);
 
       // Check if the bus stop is on the polyline
-      if (isBusStopOnPolyline(busStopLatLng, polylineCoordinates)) {
+      if (isBusStopInsideRange(polygonCoordinates, busStopLatLng)) {
         finalBusStopList.add(busStop);
         busStopMarkers.add(
           Marker(
@@ -119,7 +140,7 @@ class _TripState extends State<Trip> {
       appBar: AppBar(
         title: const Text("Trip"),
       ),
-      body: currentLocation == null
+      body: currentLocation == null || !completed
           ? const Center(
               child: Text('Loading'),
             )
@@ -147,6 +168,15 @@ class _TripState extends State<Trip> {
                     points: polylineCoordinates,
                     color: Theme.of(context).primaryColor,
                     width: 6),
+              },
+              polygons: {
+                Polygon(
+                  polygonId: const PolygonId('border_polygon'),
+                  points: polygonCoordinates,
+                  fillColor: Colors.transparent,
+                  strokeColor: Colors.blue,
+                  strokeWidth: 2,
+                ),
               },
               onMapCreated: (controller) {
                 _controller.complete(controller);

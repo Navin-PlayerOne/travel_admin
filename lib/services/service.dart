@@ -53,3 +53,88 @@ bool isBusStopOnPolyline(LatLng busStop, List<LatLng> polyline) {
   }
   return false;
 }
+
+// Constants
+const double earthRadius = 6378137; // Earth's radius in meters
+const double pi = 3.14159265359; // Pi value
+
+// Function to calculate latitude bounds
+List<double> calculateBounds(double latitude) {
+  // Distance offsets in meters
+  final double upperOffset = 500; // Positive for upward change
+  final double lowerOffset = -500; // Negative for downward change
+
+  final double latUp = upperOffset / earthRadius;
+  final double latDown = lowerOffset / earthRadius;
+
+  final double latUpper = latitude + (latUp * 180) / pi;
+  final double latLower = latitude + (latDown * 180) / pi;
+
+  return [latUpper, latLower];
+}
+
+// Function to generate polygon points around the route
+List<Map<String, double>> generatePolygonPoints(List<LatLng> polylinePoints) {
+  List<Map<String, double>> upperBound = [];
+  List<Map<String, double>> lowerBound = [];
+
+  for (LatLng point in polylinePoints) {
+    final List<double> bounds = calculateBounds(point.latitude);
+
+    upperBound.add({'lat': bounds[0], 'lng': point.longitude});
+    lowerBound.add({'lat': bounds[1], 'lng': point.longitude});
+  }
+
+  // Reverse lower bound to correct position
+  List<Map<String, double>> reverseBound = List.from(lowerBound.reversed);
+
+  // Combine upper and reversed lower bounds
+  List<Map<String, double>> fullPoly = upperBound + reverseBound;
+
+  return fullPoly;
+}
+
+//return wether the busstop is present inside the polygon or not
+bool isBusStopInsideRange(List<LatLng> polygonCoordinates, LatLng point) {
+  int crossings = 0;
+  final int numberOfVertices = polygonCoordinates.length;
+
+  for (int i = 0; i < numberOfVertices; i++) {
+    final LatLng vertex1 = polygonCoordinates[i];
+    final LatLng vertex2 = polygonCoordinates[(i + 1) % numberOfVertices];
+
+    if (vertex1.longitude == vertex2.longitude &&
+        vertex1.longitude == point.longitude) {
+      // The point is on an edge of the polygon
+      if ((vertex1.latitude <= point.latitude &&
+              point.latitude <= vertex2.latitude) ||
+          (vertex1.latitude >= point.latitude &&
+              point.latitude >= vertex2.latitude)) {
+        return true; // The point is on the polygon boundary
+      }
+    }
+
+    if (vertex1.latitude > point.latitude &&
+        vertex2.latitude > point.latitude) {
+      continue; // Skip this pair of vertices
+    }
+
+    if (vertex1.latitude < point.latitude &&
+        vertex2.latitude < point.latitude) {
+      continue; // Skip this pair of vertices
+    }
+
+    // Check if the ray intersects with the edge (latitude comparison)
+    final double x = (point.latitude - vertex1.latitude) *
+            (vertex2.longitude - vertex1.longitude) /
+            (vertex2.latitude - vertex1.latitude) +
+        vertex1.longitude;
+
+    if (x < point.longitude) {
+      crossings++;
+    }
+  }
+
+  // If the number of crossings is odd, the point is inside the polygon
+  return crossings % 2 == 1;
+}
