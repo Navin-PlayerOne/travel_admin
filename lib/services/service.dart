@@ -138,3 +138,46 @@ bool isBusStopInsideRange(List<LatLng> polygonCoordinates, LatLng point) {
   // If the number of crossings is odd, the point is inside the polygon
   return crossings % 2 == 1;
 }
+
+void findDistance(LatLng sourceLocation, List<BusStops> waypoints) async {
+  final apiKey = 'YOUR_API_KEY';
+  final apiUrl = 'https://maps.googleapis.com/maps/api/distancematrix/json';
+
+  final destinations = waypoints
+      .map((e) => '${e.lat},${e.lng}')
+      .join('|'); // Combine waypoints into a single string
+  final sourceLoc = "${sourceLocation.latitude},${sourceLocation.longitude}";
+  final url =
+      '$apiUrl?origins=$sourceLoc&destinations=$destinations&key=$apiKey';
+
+  print(url);
+
+  final response = await http.get(
+    Uri.parse(url),
+  );
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+
+    if (data['status'] == 'OK') {
+      print(data);
+      final rows = data['rows'][0]['elements'];
+
+      for (int i = 0; i < waypoints.length; i++) {
+        print(
+            "))))))))))))))))))))))))))))))))))000000000000000000000000000000))))))))))))))))))))");
+        //print(rows[i]);
+        final distanceText = rows[i]['distance']['text'];
+        final durationText = rows[i]['duration']['text'];
+        final destination = waypoints[i].name;
+
+        print('Distance from source to $destination: $distanceText');
+        print('Duration from source to $destination: $durationText');
+      }
+    } else {
+      print('>Error: ${data['status']}');
+    }
+  } else {
+    print('Failed to fetch distance matrix data');
+  }
+}

@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:travel_admin/pages/home.dart';
+import 'package:provider/provider.dart';
+import 'package:travel_admin/auth/auth.dart';
+import 'package:travel_admin/pages/authstate.dart';
 import 'package:travel_admin/pages/trip.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+   WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => AuthAPI(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -39,9 +46,8 @@ class _MyAppState extends State<MyApp> {
                 ),
           ),
           routes: {
-            '/': (context) => HomePage(),
+            '/': (context) => AuthState(),
             '/trip': (context) => Trip()
-            // '/': (context) => AuthService().handleAuthState()
           },
         );
       },

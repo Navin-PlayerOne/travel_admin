@@ -18,4 +18,13 @@ class BusStops {
       name: json['name'] as String,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = {
+      'lat': lat,
+      'lng': lng,
+      'name': name,
+    };
+    return data;
+  }
 }

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:travel_admin/models/busstopdb.dart';
 import 'package:travel_admin/models/model.dart';
+import 'package:travel_admin/services/database.dart';
 import 'package:travel_admin/services/service.dart';
 
 class Trip extends StatefulWidget {
@@ -122,6 +124,25 @@ class _TripState extends State<Trip> {
     print("--------------+++++++++++++++------------------");
     print(polylineCoordinates.length);
     setState(() {});
+
+    // findDistance(sourceLocation, finalBusStopList);
+    BusStopDB busStopDB = BusStopDB(
+        from: sourceLocation,
+        to: destination,
+        busStopList: finalBusStopList,
+        currentLocationCoordinates: currentLocation!);
+
+    print(busStopDB);
+    print("iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
+    print(busStopDB.toJson());
+    print("9999999999999999999999999999999999");
+    print(busStopDB.busStopList);
+
+    DatabaseAPI api = DatabaseAPI();
+    api.addBusStop(busStopDB: busStopDB).then((value) {
+      print("BusStops Added to DB");
+      print(value);
+    });
   }
 
   @override
@@ -147,7 +168,7 @@ class _TripState extends State<Trip> {
           : GoogleMap(
               initialCameraPosition: CameraPosition(
                   target: LatLng(
-                      currentLocation!.latitude!, currentLocation!.longitude!),
+                      sourceLocation!.latitude!, sourceLocation!.longitude!),
                   zoom: 13.5),
               markers: {
                 Marker(
