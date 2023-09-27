@@ -139,45 +139,48 @@ bool isBusStopInsideRange(List<LatLng> polygonCoordinates, LatLng point) {
   return crossings % 2 == 1;
 }
 
-void findDistance(LatLng sourceLocation, List<BusStops> waypoints) async {
+Future<List<BusStops>> findDistanceAndDuration(
+    LatLng sourceLocation, List<BusStops> busStops) async {
   final apiKey = 'YOUR_API_KEY';
-  final apiUrl = 'https://maps.googleapis.com/maps/api/distancematrix/json';
+  List<BusStops> updatedBusStops = [];
 
-  final destinations = waypoints
-      .map((e) => '${e.lat},${e.lng}')
-      .join('|'); // Combine waypoints into a single string
-  final sourceLoc = "${sourceLocation.latitude},${sourceLocation.longitude}";
-  final url =
-      '$apiUrl?origins=$sourceLoc&destinations=$destinations&key=$apiKey';
+  for (int i = 0; i < busStops.length; i++) {
+    BusStops busStop = busStops[i];
+    String apiUrl =
+        'https://maps.googleapis.com/maps/api/distancematrix/json?origins=${sourceLocation.latitude},${sourceLocation.longitude}&destinations=${busStop.lat},${busStop.lng}&key=$apiKey';
 
-  print(url);
+    // Make the API request
+    final response = await http.get(Uri.parse(apiUrl));
 
-  final response = await http.get(
-    Uri.parse(url),
-  );
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
 
-  if (response.statusCode == 200) {
-    final data = json.decode(response.body);
+      // Check if the API request was successful
+      if (data['status'] == 'OK') {
+        final List<dynamic> elements = data['rows'][0]['elements'];
 
-    if (data['status'] == 'OK') {
-      print(data);
-      final rows = data['rows'][0]['elements'];
+        // Check if the API returned valid distance and duration
+        if (elements.isNotEmpty && elements[0]['status'] == 'OK') {
+          int distance = elements[0]['distance']['value'];
+          int duration = elements[0]['duration']['value'];
 
-      for (int i = 0; i < waypoints.length; i++) {
-        print(
-            "))))))))))))))))))))))))))))))))))000000000000000000000000000000))))))))))))))))))))");
-        //print(rows[i]);
-        final distanceText = rows[i]['distance']['text'];
-        final durationText = rows[i]['duration']['text'];
-        final destination = waypoints[i].name;
+          // Update the bus stop with distance and duration
+          BusStops updatedBusStop = BusStops(
+            lat: busStop.lat,
+            lng: busStop.lng,
+            name: busStop.name,
+            distance: distance,
+            duration: duration,
+          );
 
-        print('Distance from source to $destination: $distanceText');
-        print('Duration from source to $destination: $durationText');
+          updatedBusStops.add(updatedBusStop);
+        }
       }
-    } else {
-      print('>Error: ${data['status']}');
     }
-  } else {
-    print('Failed to fetch distance matrix data');
+
+    // Introduce a delay to avoid frequent API requests
+    await Future.delayed(Duration(milliseconds: 300));
   }
+
+  return updatedBusStops;
 }

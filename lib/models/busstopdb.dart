@@ -1,18 +1,23 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:location/location.dart';
 import 'package:travel_admin/models/model.dart';
 
 class BusStopDB {
   LatLng from;
   LatLng to;
   List<BusStops> busStopList;
-  LocationData currentLocationCoordinates;
+  LatLng currentLocationCoordinates;
+  String polyLineString;
+  int distance;
+  int duration;
 
   BusStopDB({
     required this.from,
     required this.to,
     required this.busStopList,
     required this.currentLocationCoordinates,
+    required this.distance,
+    required this.duration,
+    required this.polyLineString
   });
 
   factory BusStopDB.fromJson(Map<String, dynamic> json) {
@@ -26,16 +31,22 @@ class BusStopDB {
       to: json['To'],
       busStopList: busStopList,
       currentLocationCoordinates: json['CurrentLocationCoordinates'],
+      distance: json['distance'],
+      duration: json['duration'],
+      polyLineString: json['polyLineString']
     );
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {
-      'From': {'lat' : from.latitude,'lng' : from.longitude}.toString(),
-      'To': {'lat' : to.latitude,'lng' : to.longitude}.toString(),
+      'From': {'lat': from.latitude, 'lng': from.longitude}.toString(),
+      'To': {'lat': to.latitude, 'lng': to.longitude}.toString(),
       'BusStopList':
           busStopList.map((busStop) => busStop.toJson().toString()).toList(),
-      'CurrentLocationCoordinates': {'lat' : currentLocationCoordinates.latitude,'lng' : currentLocationCoordinates.longitude}.toString(),
+      'CurrentLocationCoordinates': {'lat': currentLocationCoordinates.latitude,'lng': currentLocationCoordinates.longitude}.toString(),
+      'polyLineString' : polyLineString,
+      'distance' :distance,
+      'duration' :duration
     };
     return data;
   }

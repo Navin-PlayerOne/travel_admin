@@ -29,6 +29,9 @@ class _TripState extends State<Trip> {
   late LatLng sourceLocation;
   late LatLng destination;
   late List<BusStops> finalBusStopList = [];
+  late int distance;
+  late int minutes;
+  late String routePolyLine;
   Map<String, dynamic> hashes = {};
 
   List<LatLng> polylineCoordinates = [];
@@ -68,6 +71,24 @@ class _TripState extends State<Trip> {
           {polylineCoordinates.add(LatLng(point.latitude, point.longitude))});
     }
 
+    print("polypoints results ?????????????????");
+    print(result.distance);
+    print(result.distanceText);
+    print(result.distanceValue);
+    print(result.duration);
+    print(result.durationText);
+    print(result.durationValue);
+    print(result.overviewPolyline);
+
+    distance = result.distanceValue ?? 0;
+    minutes = result.durationValue ?? 0;
+    routePolyLine = result.overviewPolyline ?? '';
+
+    polylinePoints.decodePolyline(result.overviewPolyline!).forEach((element) {
+      print("----");
+      print(element.latitude);
+      print(element.longitude);
+    });
     //creating a polygon
     // Create a polygon with extra width
     // Generate polygon points
@@ -125,12 +146,19 @@ class _TripState extends State<Trip> {
     print(polylineCoordinates.length);
     setState(() {});
 
-    // findDistance(sourceLocation, finalBusStopList);
+    //updating the time and distance in the final busstop
+    finalBusStopList =
+        await findDistanceAndDuration(sourceLocation, finalBusStopList);
+
     BusStopDB busStopDB = BusStopDB(
         from: sourceLocation,
         to: destination,
         busStopList: finalBusStopList,
-        currentLocationCoordinates: currentLocation!);
+        currentLocationCoordinates: LatLng((currentLocation?.latitude) ?? 0.0,
+            currentLocation?.longitude ?? 0.0),
+        distance: distance,
+        duration: minutes,
+        polyLineString: routePolyLine);
 
     print(busStopDB);
     print("iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
