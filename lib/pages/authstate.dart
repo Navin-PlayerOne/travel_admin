@@ -18,7 +18,7 @@ class AuthState extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           )
         : value == AuthStatus.authenticated
-            ?  HomePage()
+            ? MyHomePage()
             : const LoginPage();
   }
 }

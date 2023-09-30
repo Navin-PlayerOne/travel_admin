@@ -1,68 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:travel_admin/services/service.dart';
+import 'dart:ffi';
 
-class HomePage extends StatefulWidget {
+import 'package:flutter/material.dart';
+import 'package:travel_admin/pages/suggestionsheet.dart';
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
+
   @override
-  _HomePageState createState() => _HomePageState();
+  State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final TextEditingController _startLocationController =
-      TextEditingController();
-  final TextEditingController _destinationController = TextEditingController();
-
-  List<String> startLocationSuggestions = [];
-  List<String> destinationSuggestions = [];
-
-  List<Location> startLocations = [];
-  List<Location> destLocations = [];
-
-  int sourceIndex = -1;
-  int destIndex = -1;
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  Future<List<String>> _getSuggestionsStart(String query) async {
-    try {
-      final location = await locationFromAddress(query);
-      startLocations = location;
-      final locations = await Future.wait(location.map((coordinates) =>
-          placemarkFromCoordinates(
-              coordinates.latitude, coordinates.longitude)));
-
-      return locations
-          .map((location) =>
-              "${location.first.locality}, ${location.first.administrativeArea}, ${location.first.country}")
-          .toList();
-    } catch (e) {
-      print('Error fetching location suggestions: $e');
-      return [];
-    }
-  }
-
-  Future<List<String>> _getSuggestionsDest(String query) async {
-    try {
-      final location = await locationFromAddress(query);
-      destLocations = location;
-      final locations = await Future.wait(location.map((coordinates) =>
-          placemarkFromCoordinates(
-              coordinates.latitude, coordinates.longitude)));
-
-      return locations
-          .map((location) =>
-              "${location.first.locality}, ${location.first.administrativeArea}, ${location.first.country}")
-          .toList();
-    } catch (e) {
-      print('Error fetching location suggestions: $e');
-      return [];
-    }
-  }
-
+class _MyHomePageState extends State<MyHomePage> {
   void _showBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -70,93 +18,17 @@ class _HomePageState extends State<HomePage> {
       builder: (BuildContext context) {
         return SingleChildScrollView(
           child: SizedBox(
-            height: 600,
+            height: 800,
             child: Container(
               padding: EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Text('Create a Trip'),
-                  SizedBox(height: 16.0),
-                  TypeAheadFormField<String>(
-                    textFieldConfiguration: TextFieldConfiguration(
-                      controller: _startLocationController,
-                      decoration: InputDecoration(
-                        labelText: 'Choose start location',
-                      ),
-                    ),
-                    suggestionsCallback: (pattern) async {
-                      final suggestions = await _getSuggestionsStart(pattern);
-                      setState(() {
-                        startLocationSuggestions =
-                            suggestions; // Update suggestion list
-                      });
-                      return suggestions;
-                    },
-                    itemBuilder: (context, suggestion) {
-                      return ListTile(
-                        title: Text(
-                          suggestion,
-                          style: TextStyle(fontSize: 18.0),
-                        ),
-                      );
-                    },
-                    onSuggestionSelected: (suggestion) {
-                      final index =
-                          startLocationSuggestions.indexOf(suggestion);
-                      sourceIndex = index;
-                      print('Selected suggestion index: $index');
-                      print('Selected suggestion: $suggestion');
-
-                      _startLocationController.text = suggestion;
-                    },
-                  ),
-                  SizedBox(height: 16.0),
-                  TypeAheadFormField<String>(
-                    textFieldConfiguration: TextFieldConfiguration(
-                      controller: _destinationController,
-                      decoration: InputDecoration(
-                        labelText: 'Choose destination',
-                      ),
-                    ),
-                    suggestionsCallback: (pattern) async {
-                      final suggestions = await _getSuggestionsDest(pattern);
-                      setState(() {
-                        destinationSuggestions =
-                            suggestions; // Update suggestion list
-                      });
-                      return suggestions;
-                    },
-                    itemBuilder: (context, suggestion) {
-                      return ListTile(
-                        title: Text(
-                          suggestion,
-                          style: TextStyle(fontSize: 18.0),
-                        ),
-                      );
-                    },
-                    onSuggestionSelected: (suggestion) {
-                      final index = destinationSuggestions.indexOf(suggestion);
-                      destIndex = index;
-                      print('Selected suggestion index: $index');
-                      print('Selected suggestion: $suggestion');
-
-                      _destinationController.text = suggestion;
-                    },
-                  ),
-                  SizedBox(height: 16.0),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (sourceIndex != -1 && destIndex != -1) {
-                        Navigator.pushNamed(context, '/trip', arguments: {
-                          'source': startLocations[sourceIndex],
-                          'dest': destLocations[destIndex]
-                        });
-                      }
-                    },
-                    child: Text('Start travel'),
-                  ),
-                ],
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(25.0),
+                  topRight: Radius.circular(25.0),
+                ),
               ),
+              child: LocationSuggestionSheet(),
             ),
           ),
         );
@@ -170,12 +42,7 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: Text('Travel Admin'),
       ),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () {},
-          child: Text('Show Bottom Sheet'),
-        ),
-      ),
+      body: Center(child: Text('No Trip Found!')),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           _showBottomSheet(context);

@@ -10,7 +10,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="appwrite-callback-YOUR_PROJECT_API_KEY" />
+                <data android:scheme="appwrite-callback-YOUR_PROJECT_ID" />
             </intent-filter>
          </activity>
         <activity
