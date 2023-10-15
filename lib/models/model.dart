@@ -20,8 +20,18 @@ class BusStops {
         lng: location['lng'] as double,
         name: json['name'] as String,
         distance: 0,
-        duration: 0
-        );
+        duration: 0);
+  }
+
+  factory BusStops.fromAppWrite(Map<String, dynamic> json) {
+    print("------ busStop Appwrite json");
+    print(json);
+    return BusStops(
+        lat: double.parse(json['lat']),
+        lng: double.parse(json['lng']),
+        name: json['name'],
+        distance: int.parse(json['distance']),
+        duration: int.parse(json['duration']));
   }
 
   Map<String, dynamic> toJson() {
@@ -34,4 +44,11 @@ class BusStops {
     };
     return data;
   }
+}
+
+class TripTemplate {
+  String fromName;
+  String toName;
+
+  TripTemplate({required this.fromName, required this.toName});
 }

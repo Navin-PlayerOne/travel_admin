@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:travel_admin/models/busstopdb.dart';
@@ -32,6 +33,8 @@ class _TripState extends State<Trip> {
   late int distance;
   late int minutes;
   late String routePolyLine;
+  late String fromName;
+  late String toName;
   Map<String, dynamic> hashes = {};
 
   List<LatLng> polylineCoordinates = [];
@@ -48,15 +51,15 @@ class _TripState extends State<Trip> {
 
     GoogleMapController googleMapController = await _controller.future;
 
-    location.onLocationChanged.listen((newLocation) {
-      currentLocation = newLocation;
+    // location.onLocationChanged.listen((newLocation) {
+    //   currentLocation = newLocation;
 
-      googleMapController.animateCamera(CameraUpdate.newCameraPosition(
-          CameraPosition(
-              zoom: 13.5,
-              target: LatLng(newLocation.latitude!, newLocation.longitude!))));
-      setState(() {});
-    });
+    //   googleMapController.animateCamera(CameraUpdate.newCameraPosition(
+    //       CameraPosition(
+    //           zoom: 13.5,
+    //           target: LatLng(newLocation.latitude!, newLocation.longitude!))));
+    //   setState(() {});
+    // });
   }
 
   void getPolyLinePoints() async {
@@ -150,6 +153,14 @@ class _TripState extends State<Trip> {
     finalBusStopList =
         await findDistanceAndDuration(sourceLocation, finalBusStopList);
 
+    //sort the busStop based on the distance
+    finalBusStopList.sort((a, b) => a.distance.compareTo(b.distance));
+
+    print("BusStopList final!");
+    finalBusStopList.forEach((element) {
+      print("${element.name} ${element.distance}");
+    });
+
     BusStopDB busStopDB = BusStopDB(
         from: sourceLocation,
         to: destination,
@@ -159,6 +170,8 @@ class _TripState extends State<Trip> {
         distance: distance,
         duration: minutes,
         polyLineString: routePolyLine);
+    busStopDB.fromName = fromName;
+    busStopDB.toName = toName;
 
     print(busStopDB);
     print("iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
@@ -179,6 +192,8 @@ class _TripState extends State<Trip> {
     sourceLocation =
         LatLng(hashes['source'].latitude, hashes['source'].longitude);
     destination = LatLng(hashes['dest'].latitude, hashes['dest'].longitude);
+    fromName = hashes['fromName'];
+    toName = hashes['toName'];
     if (isFirst) {
       print("welcome");
       getPolyLinePoints();
@@ -191,7 +206,10 @@ class _TripState extends State<Trip> {
       ),
       body: currentLocation == null || !completed
           ? const Center(
-              child: Text('Loading'),
+              child: SpinKitSquareCircle(
+                size: 200,
+                color: Colors.indigo,
+              ),
             )
           : GoogleMap(
               initialCameraPosition: CameraPosition(

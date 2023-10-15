@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:travel_admin/services/database.dart';
 
 class LocationSuggestion {
   final String description;
@@ -20,6 +21,14 @@ class LocationSuggestionSheet extends StatefulWidget {
 }
 
 class _LocationSuggestionSheetState extends State<LocationSuggestionSheet> {
+  late DatabaseAPI db;
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    db = DatabaseAPI();
+  }
+
   TextEditingController _sourceController = TextEditingController();
   TextEditingController _destinationController = TextEditingController();
   late TextEditingController _focusedController;
@@ -229,8 +238,12 @@ class _LocationSuggestionSheetState extends State<LocationSuggestionSheet> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           if (source != null && destination != null) {
-            Navigator.pushNamed(context, '/trip',
-                arguments: {'source': source, 'dest': destination});
+            // Navigator.pushNamed(context, '/trip',
+            //     arguments: {'source': source, 'dest': destination,'fromName' : _sourceController.text,'toName' : _destinationController.text});
+            db.getBusStopDB(
+                {'lat': source!.latitude, 'lng': source!.longitude}.toString(),
+                {'lat': destination!.latitude, 'lng': destination!.longitude}
+                    .toString());
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text("Please Enter Locations!")));

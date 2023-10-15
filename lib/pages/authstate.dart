@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth.dart';
@@ -15,7 +16,10 @@ class AuthState extends StatelessWidget {
 
     return value == AuthStatus.uninitialized
         ? const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: SpinKitDoubleBounce(
+              color: Colors.indigo,
+              size: 300,
+            ),
           )
         : value == AuthStatus.authenticated
             ? MyHomePage()
