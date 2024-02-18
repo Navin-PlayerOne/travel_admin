@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:appwrite/models.dart';
+import 'package:cool_alert/cool_alert.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:travel_admin/models/busstopdb.dart';
@@ -19,10 +22,12 @@ class Trip extends StatefulWidget {
 
 class _TripState extends State<Trip> {
   bool isFirst = false;
+  late DatabaseAPI db;
   @override
   void initState() {
     super.initState();
     isFirst = true;
+    db = DatabaseAPI();
   }
 
   Set<Marker> busStopMarkers = {};
@@ -36,17 +41,26 @@ class _TripState extends State<Trip> {
   late String fromName;
   late String toName;
   Map<String, dynamic> hashes = {};
+  bool fromContinue = false;
+  int currentPassengerCount = 0;
 
   List<LatLng> polylineCoordinates = [];
   List<LatLng> polygonCoordinates = [];
   LocationData? currentLocation;
   bool completed = false;
+  bool isLargeDistance = false;
 
-  void getCurrentLocation() async {
+  late BitmapDescriptor sourceIcon;
+  late BitmapDescriptor destinationIcon;
+  late BitmapDescriptor currentLocationIcon;
+
+  Future getCurrentLocation() async {
+    print("fetching current location");
     Location location = Location();
     location.getLocation().then((location) {
       currentLocation = location;
       setState(() {});
+      print("got your current location");
     });
 
     GoogleMapController googleMapController = await _controller.future;
@@ -62,7 +76,7 @@ class _TripState extends State<Trip> {
     // });
   }
 
-  void getPolyLinePoints() async {
+  Future getPolyLinePoints() async {
     PolylinePoints polylinePoints = PolylinePoints();
     PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
         'YOUR_API_KEY',
@@ -86,6 +100,15 @@ class _TripState extends State<Trip> {
     distance = result.distanceValue ?? 0;
     minutes = result.durationValue ?? 0;
     routePolyLine = result.overviewPolyline ?? '';
+
+    try {
+      if (result.distanceValue! > 25000) {
+        isLargeDistance = true;
+        return;
+      }
+    } catch (e) {
+      return;
+    }
 
     polylinePoints.decodePolyline(result.overviewPolyline!).forEach((element) {
       print("----");
@@ -156,6 +179,9 @@ class _TripState extends State<Trip> {
     //sort the busStop based on the distance
     finalBusStopList.sort((a, b) => a.distance.compareTo(b.distance));
 
+    //remove duplicates
+    finalBusStopList = removeDuplicates(finalBusStopList);
+
     print("BusStopList final!");
     finalBusStopList.forEach((element) {
       print("${element.name} ${element.distance}");
@@ -194,15 +220,16 @@ class _TripState extends State<Trip> {
     destination = LatLng(hashes['dest'].latitude, hashes['dest'].longitude);
     fromName = hashes['fromName'];
     toName = hashes['toName'];
+    fromContinue = hashes['fromContinue'] ?? false;
     if (isFirst) {
-      print("welcome");
-      getPolyLinePoints();
-      getCurrentLocation();
       isFirst = false;
+      print("welcome");
+      tryCaching();
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Trip"),
+        title: Text("Trip", style: GoogleFonts.poppins(fontSize: 25)),
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       ),
       body: currentLocation == null || !completed
           ? const Center(
@@ -224,9 +251,10 @@ class _TripState extends State<Trip> {
                     markerId: const MarkerId('destination'),
                     position: destination),
                 Marker(
-                    markerId: const MarkerId('currentLocation'),
-                    position: LatLng(currentLocation!.latitude!,
-                        currentLocation!.longitude!)),
+                  markerId: const MarkerId('currentLocation'),
+                  position: LatLng(
+                      currentLocation!.latitude!, currentLocation!.longitude!),
+                ),
                 ...busStopMarkers,
               },
               polylines: {
@@ -241,7 +269,7 @@ class _TripState extends State<Trip> {
                   polygonId: const PolygonId('border_polygon'),
                   points: polygonCoordinates,
                   fillColor: Colors.transparent,
-                  strokeColor: Colors.blue,
+                  strokeColor: Colors.transparent,
                   strokeWidth: 2,
                 ),
               },
@@ -249,6 +277,128 @@ class _TripState extends State<Trip> {
                 _controller.complete(controller);
               },
             ),
+      floatingActionButton: Visibility(
+        visible: completed,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(32, 8, 8, 8),
+          child: Row(
+            children: [
+              FloatingActionButton(
+                  onPressed: () =>
+                      updatePassengerCount(currentPassengerCount += 1),
+                  child: const Icon(Icons.add)),
+              SizedBox(
+                width: 16,
+              ),
+              FloatingActionButton(
+                  onPressed: () =>
+                      updatePassengerCount(currentPassengerCount -= 1),
+                  child: const Icon(Icons.remove)),
+            ],
+          ),
+        ),
+      ),
     );
+  }
+
+  updatePassengerCount(int count) async {
+    if (count < 0) {
+      currentPassengerCount = 0;
+    } else {
+      DatabaseAPI api = DatabaseAPI();
+      api.updatePassengerCount(await api.getCurrentTrip() ?? '', count);
+    }
+  }
+
+  void tryCaching() async {
+    final result = await db.getBusStopDB(
+        {'lat': sourceLocation.latitude, 'lng': sourceLocation.longitude}
+            .toString(),
+        {'lat': destination!.latitude, 'lng': destination!.longitude}
+            .toString());
+    if (result != null) {
+      getCurrentLocation();
+      setProperties(result);
+      //db.updateUserCurrentTrip(currentTripId);
+    } else {
+      print("New data so loading it from google !!!!!!!!!!!!!!");
+      print(result);
+      await getPolyLinePoints();
+      if (isLargeDistance) {
+        CoolAlert.show(
+          context: context,
+          type: CoolAlertType.error,
+          text: "Trip must be within 25 KM",
+          barrierDismissible: false,
+          onConfirmBtnTap: () => Navigator.pop(context),
+        );
+      }
+      getCurrentLocation();
+    }
+  }
+
+  void setCustomMarkers() {
+    BitmapDescriptor.fromAssetImage(ImageConfiguration.empty, "")
+        .then((icon) => sourceIcon = icon);
+    BitmapDescriptor.fromAssetImage(ImageConfiguration.empty, "")
+        .then((icon) => destinationIcon = icon);
+    BitmapDescriptor.fromAssetImage(ImageConfiguration.empty, "")
+        .then((icon) => currentLocationIcon = icon);
+  }
+
+  void setProperties(BusStopDB busStopDB) async {
+    print(
+        "Loading all of the data from AppWrite  So Sit back and relax no rateLimit from google_____________");
+    PolylinePoints polylinePoints = PolylinePoints();
+    List<PointLatLng> result =
+        polylinePoints.decodePolyline(busStopDB.polyLineString);
+
+    if (result.isNotEmpty) {
+      result.forEach((PointLatLng point) =>
+          {polylineCoordinates.add(LatLng(point.latitude, point.longitude))});
+    }
+    //creating a polygon
+    // Create a polygon with extra width
+    // Generate polygon points
+    try {
+      List<Map<String, double>> polygonPoints =
+          generatePolygonPoints(polylineCoordinates);
+
+      // Print the polygon points
+      for (Map<String, double> point in polygonPoints) {
+        polygonCoordinates.add(LatLng(point['lat']!, point['lng']!));
+      }
+    } catch (e) {
+      print(e);
+    }
+    int i = 0;
+    busStopMarkers.clear();
+    busStopDB.busStopList.forEach((busStop) {
+      print(busStop.lat);
+      print(busStop.lng);
+      busStopMarkers.add(
+        Marker(
+          markerId: MarkerId("${i++}"), // Unique marker ID
+          position: LatLng(busStop.lat, busStop.lng),
+          infoWindow: InfoWindow(
+            title: 'Bus Stop',
+            snippet: busStop.name,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueBlue,
+          ),
+        ),
+      );
+    });
+    if (!fromContinue) {
+      busStopDB.currentLocationCoordinates = LatLng(0.0, 0.0);
+      busStopDB.fromName = fromName;
+      busStopDB.toName = toName;
+      Document doc = await db.addTravelInfoDynamic(busStopDB);
+      db.updateUserCurrentTrip(doc);
+    }
+    setState(() {
+      completed = true;
+    });
   }
 }

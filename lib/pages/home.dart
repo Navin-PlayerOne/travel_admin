@@ -16,6 +16,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late DatabaseAPI db;
   int isContinue = -1;
   late TripTemplate tempalte;
+  String? currentTripId;
 
   @override
   void initState() {
@@ -25,10 +26,10 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void loadTrip() async {
-    String? currentTripId = await db.getCurrentTrip();
+    currentTripId = await db.getCurrentTrip();
     if (currentTripId != null) {
       try {
-        tempalte = (await db.fetchTripInfo(currentTripId))!;
+        tempalte = (await db.fetchTripInfo(currentTripId!))!;
       } catch (e) {
         setState(() {
           isContinue = 0;
@@ -75,7 +76,11 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Travel Admin'),
+        title: Text(
+          'Travel Admin',
+          style: GoogleFonts.poppins(fontSize: 25),
+        ),
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       ),
       body: bodyWidget(),
       floatingActionButton: FloatingActionButton(
@@ -126,7 +131,16 @@ class _MyHomePageState extends State<MyHomePage> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               ElevatedButton(
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    Navigator.pushNamed(context, '/trip',
+                                        arguments: {
+                                          'source': tempalte.from,
+                                          'dest': tempalte.to,
+                                          'fromName': tempalte.fromName,
+                                          'toName': tempalte.toName,
+                                          'fromContinue': true
+                                        });
+                                  },
                                   child: const Text('continue')),
                               ElevatedButton(
                                   onPressed: () {},

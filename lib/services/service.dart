@@ -184,3 +184,20 @@ Future<List<BusStops>> findDistanceAndDuration(
 
   return updatedBusStops;
 }
+
+List<BusStops> removeDuplicates(List<BusStops> busStopsList) {
+  List<BusStops> uniqueBusStops = [];
+  Set<String> uniqueKeys = {};
+
+  for (var busStop in busStopsList) {
+    String key = '${busStop.lat}_${busStop.lng}';
+
+    // Check if the key is not in the set (i.e., not encountered before)
+    if (!uniqueKeys.contains(key)) {
+      uniqueKeys.add(key);
+      uniqueBusStops.add(busStop);
+    }
+  }
+
+  return uniqueBusStops;
+}

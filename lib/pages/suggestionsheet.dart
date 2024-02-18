@@ -238,12 +238,12 @@ class _LocationSuggestionSheetState extends State<LocationSuggestionSheet> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           if (source != null && destination != null) {
-            // Navigator.pushNamed(context, '/trip',
-            //     arguments: {'source': source, 'dest': destination,'fromName' : _sourceController.text,'toName' : _destinationController.text});
-            db.getBusStopDB(
-                {'lat': source!.latitude, 'lng': source!.longitude}.toString(),
-                {'lat': destination!.latitude, 'lng': destination!.longitude}
-                    .toString());
+            Navigator.pushNamed(context, '/trip', arguments: {
+              'source': source,
+              'dest': destination,
+              'fromName': _sourceController.text,
+              'toName': _destinationController.text
+            });
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text("Please Enter Locations!")));

@@ -13,6 +13,7 @@ class BusStopDB {
   int duration;
   late String fromName;
   late String toName;
+  late String id;
 
   BusStopDB(
       {required this.from,
@@ -42,18 +43,20 @@ class BusStopDB {
   factory BusStopDB.fromAppWrite(Map<String, dynamic> json) {
     print("------ busStopDb Appwrite json");
     print(json);
-    return BusStopDB(
-        from: LatLng(double.parse(json['From']['lat']),
-            double.parse(json['From']['lng'])),
-        to: LatLng(
-            double.parse(json['To']['lat']), double.parse(json['To']['lng'])),
-        busStopList: List<BusStops>.from(
-          json['BusStopList'].map((e) => BusStops.fromAppWrite(e)),
-        ),
-        currentLocationCoordinates: LatLng(0, 0),
-        distance: int.parse(json['distance']),
-        duration: int.parse(json['duration']),
-        polyLineString: json['polyLineString']);
+    BusStopDB busStopDB = BusStopDB(
+      from: LatLng(
+          double.parse(json['From']['lat']), double.parse(json['From']['lng'])),
+      to: LatLng(
+          double.parse(json['To']['lat']), double.parse(json['To']['lng'])),
+      busStopList: List<BusStops>.from(
+        json['BusStopList'].map((e) => BusStops.fromAppWrite(e)),
+      ),
+      currentLocationCoordinates: LatLng(0, 0),
+      distance: int.parse(json['distance']),
+      duration: int.parse(json['duration']),
+      polyLineString: json['polyLineString'],
+    );
+    return busStopDB;
   }
 
   Map<String, dynamic> toJson() {

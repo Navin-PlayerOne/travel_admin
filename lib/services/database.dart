@@ -1,7 +1,7 @@
 import 'dart:convert';
-
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:travel_admin/auth/auth.dart';
 import 'package:travel_admin/constants/constants.dart';
 import 'package:travel_admin/models/busstopdb.dart';
@@ -40,7 +40,10 @@ class DatabaseAPI {
     await getUserId();
     Document doc = await addBusStopMetaData(busStopDB: busStopDB);
     //admin collection
+    return updateUserCurrentTrip(doc);
+  }
 
+  Future<Document> updateUserCurrentTrip(doc) async {
     late Document existingDocument;
     // Check if the document exists
     try {
@@ -87,7 +90,25 @@ class DatabaseAPI {
               busStopDB.currentLocationCoordinates.toJson().toString(),
           'progress': 0,
           'fromName': busStopDB.fromName,
-          'toName': busStopDB.toName
+          'toName': busStopDB.toName,
+          'passengerCount': 0
+        });
+  }
+
+  Future<Document> addTravelInfoDynamic(BusStopDB busStopDB) async {
+    //return Travel_info doc id
+    return databases.createDocument(
+        databaseId: APPWRITE_DATABASE_ID,
+        collectionId: COLLECTION_TRAVEL_INFO,
+        documentId: ID.unique(),
+        data: {
+          'busStopDB_ID': busStopDB.id,
+          'CurrentLocationCoordinates':
+              busStopDB.currentLocationCoordinates.toJson().toString(),
+          'progress': 0,
+          'fromName': busStopDB.fromName,
+          'toName': busStopDB.toName,
+          'passengerCount': 0
         });
   }
 
@@ -126,10 +147,21 @@ class DatabaseAPI {
         databaseId: APPWRITE_DATABASE_ID,
         documentId: tripId);
     if (doc != null) {
+      Document doc2 = await databases.getDocument(
+          collectionId: COLLECTION_BUSSTOPS,
+          databaseId: APPWRITE_DATABASE_ID,
+          documentId: doc.data['busStopDB_ID']);
+
       print(doc.data['fromName']);
       print(doc.data['toName']);
+      Map<String, dynamic> fr, to;
+      fr = convertJsonString(doc2.data['From']);
+      to = convertJsonString(doc2.data['To']);
       return TripTemplate(
-          fromName: doc.data['fromName'], toName: doc.data['toName']);
+          fromName: doc.data['fromName'],
+          toName: doc.data['toName'],
+          from: LatLng(double.parse(fr['lat']), double.parse(fr['lng'])),
+          to: LatLng(double.parse(to['lat']), double.parse(to['lng'])));
     } else {
       return null;
     }
@@ -174,7 +206,10 @@ class DatabaseAPI {
         print("corrected json object");
         print(json);
         BusStopDB busStopDB = BusStopDB.fromAppWrite(json);
+        busStopDB.id = document.documents.first.$id;
         return busStopDB;
+      } else {
+        return null;
       }
       print("---");
     } catch (e) {
@@ -197,5 +232,23 @@ class DatabaseAPI {
     } catch (e) {
       return name;
     }
+  }
+
+  Future updatePassengerCount(String tripId,int passengerCount) async{
+     try {
+    // Update the document with the new data
+    Document document = await databases.updateDocument(
+      collectionId: COLLECTION_TRAVEL_INFO,
+      databaseId: APPWRITE_DATABASE_ID,
+      documentId: tripId,
+      data: {
+        'passengerCount':passengerCount
+      },
+    );
+
+    print('Document updated successfully: ${document.data}');
+  } catch (e) {
+    print('Failed to update Passenger Count: $e');
+  }
   }
 }
