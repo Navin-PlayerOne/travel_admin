@@ -8,13 +8,19 @@ import 'package:travel_admin/models/busstopdb.dart';
 import 'package:travel_admin/models/model.dart';
 
 class DatabaseAPI {
+  static DatabaseAPI? _instance;
   Client client = Client();
   late final Account account;
   late final Databases databases;
   final AuthAPI auth = AuthAPI();
   late String userId = "";
 
-  DatabaseAPI() {
+  factory DatabaseAPI() {
+    _instance ??= DatabaseAPI._internal();
+    return _instance!;
+  }
+
+  DatabaseAPI._internal() {
     init();
   }
 
@@ -91,7 +97,8 @@ class DatabaseAPI {
           'progress': 0,
           'fromName': busStopDB.fromName,
           'toName': busStopDB.toName,
-          'passengerCount': 0
+          'passengerCount': 0,
+          'currentBusStopIndex': 0
         });
   }
 
@@ -108,7 +115,8 @@ class DatabaseAPI {
           'progress': 0,
           'fromName': busStopDB.fromName,
           'toName': busStopDB.toName,
-          'passengerCount': 0
+          'passengerCount': 0,
+          'currentBusStopIndex': 0
         });
   }
 
@@ -180,6 +188,34 @@ class DatabaseAPI {
     }
   }
 
+  Future<int> getCurrentPassengerCount(String tripId) async {
+    //travel Info
+    Document doc = await databases.getDocument(
+        collectionId: COLLECTION_TRAVEL_INFO,
+        databaseId: APPWRITE_DATABASE_ID,
+        documentId: tripId);
+    if (doc != null) {
+      return doc.data['passengerCount'];
+    } else {
+      return 0;
+    }
+  }
+
+  Future updateCurrentLocationCoordinated(
+      LatLng currentLocation, String tripId) async {
+    print("Updating Your current location ....");
+    print(currentLocation.latitude.toString());
+    print(currentLocation.longitude.toString());
+    Document doc = await databases.updateDocument(
+        collectionId: COLLECTION_TRAVEL_INFO,
+        databaseId: APPWRITE_DATABASE_ID,
+        documentId: tripId,
+        data: {
+          'CurrentLocationCoordinates':
+              [currentLocation.latitude, currentLocation.longitude].toString()
+        });
+  }
+
   Future getBusStopDB(String from, String to) async {
     try {
       final document = await databases.listDocuments(
@@ -191,11 +227,16 @@ class DatabaseAPI {
         ],
       );
       print("loading from appwrite this busStops ALready Exist!");
-      print(document.documents.first.data.toString());
+      print(document.documents.first.data);
+      print(document.documents.first.data['BusStopList']);
       if (document.documents.isNotEmpty) {
         Map<String, dynamic> tempJson, json = {};
         tempJson = document.documents.first.data;
         tempJson.forEach((key, value) {
+          print("===========");
+          print(key);
+          print(value);
+          print("===========");
           if (key != 'BusStopList') {
             json.addEntries({key: convertJsonString(value.toString())}.entries);
           } else {
@@ -234,21 +275,35 @@ class DatabaseAPI {
     }
   }
 
-  Future updatePassengerCount(String tripId,int passengerCount) async{
-     try {
-    // Update the document with the new data
-    Document document = await databases.updateDocument(
-      collectionId: COLLECTION_TRAVEL_INFO,
-      databaseId: APPWRITE_DATABASE_ID,
-      documentId: tripId,
-      data: {
-        'passengerCount':passengerCount
-      },
-    );
+  Future updatePassengerCount(String tripId, int passengerCount) async {
+    try {
+      // Update the document with the new data
+      Document document = await databases.updateDocument(
+        collectionId: COLLECTION_TRAVEL_INFO,
+        databaseId: APPWRITE_DATABASE_ID,
+        documentId: tripId,
+        data: {'passengerCount': passengerCount},
+      );
 
-    print('Document updated successfully: ${document.data}');
-  } catch (e) {
-    print('Failed to update Passenger Count: $e');
+      print('Document updated successfully: ${document.data}');
+    } catch (e) {
+      print('Failed to update Passenger Count: $e');
+    }
   }
+
+  Future updateBusStopIndex(String tripId, int busStopIndex) async {
+    try {
+      // Update the document with the new data
+      Document document = await databases.updateDocument(
+        collectionId: COLLECTION_TRAVEL_INFO,
+        databaseId: APPWRITE_DATABASE_ID,
+        documentId: tripId,
+        data: {'currentBusStopIndex': busStopIndex},
+      );
+
+      print('Document updated successfully: ${document.data}');
+    } catch (e) {
+      print('Failed to update currentBusStopIndex : $e');
+    }
   }
 }

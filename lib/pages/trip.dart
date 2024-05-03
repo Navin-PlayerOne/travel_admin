@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:appwrite/models.dart';
 import 'package:cool_alert/cool_alert.dart';
@@ -23,11 +25,20 @@ class Trip extends StatefulWidget {
 class _TripState extends State<Trip> {
   bool isFirst = false;
   late DatabaseAPI db;
+  HttpServer? _server;
+
   @override
   void initState() {
     super.initState();
     isFirst = true;
     db = DatabaseAPI();
+    startServer(); // Start the server when the page lands
+  }
+
+  @override
+  void dispose() {
+    stopServer(); // Stop the server when the page is exited
+    super.dispose();
   }
 
   Set<Marker> busStopMarkers = {};
@@ -40,9 +51,12 @@ class _TripState extends State<Trip> {
   late String routePolyLine;
   late String fromName;
   late String toName;
+  late String currentTripId;
   Map<String, dynamic> hashes = {};
   bool fromContinue = false;
   int currentPassengerCount = 0;
+  final locationUpdater = LocationUpdater();
+  BusDistance busDistance = BusDistance();
 
   List<LatLng> polylineCoordinates = [];
   List<LatLng> polygonCoordinates = [];
@@ -65,15 +79,26 @@ class _TripState extends State<Trip> {
 
     GoogleMapController googleMapController = await _controller.future;
 
-    // location.onLocationChanged.listen((newLocation) {
-    //   currentLocation = newLocation;
+    location.onLocationChanged.listen((newLocation) {
+      if (completed) {
+        int currentBusStoIndex = busDistance.updateLocation(
+            LatLng(newLocation!.latitude!, newLocation!.longitude!),
+            finalBusStopList);
+        if (currentBusStoIndex != -1) {
+          print("updating the bustop index to the appwrite db ...");
+          db.updateBusStopIndex(currentTripId, currentBusStoIndex);
+        }
+      }
+      currentLocation = newLocation;
+      locationUpdater.updateLocation(
+          LatLng(newLocation.latitude!, newLocation.longitude!), currentTripId);
 
-    //   googleMapController.animateCamera(CameraUpdate.newCameraPosition(
-    //       CameraPosition(
-    //           zoom: 13.5,
-    //           target: LatLng(newLocation.latitude!, newLocation.longitude!))));
-    //   setState(() {});
-    // });
+      googleMapController.animateCamera(CameraUpdate.newCameraPosition(
+          CameraPosition(
+              zoom: 13.5,
+              target: LatLng(newLocation.latitude!, newLocation.longitude!))));
+      setState(() {});
+    });
   }
 
   Future getPolyLinePoints() async {
@@ -129,9 +154,6 @@ class _TripState extends State<Trip> {
     } catch (e) {
       print(e);
     }
-    setState(() {
-      completed = true;
-    });
 
     //get bus stops
     List<BusStops> busStops = [];
@@ -182,6 +204,10 @@ class _TripState extends State<Trip> {
     //remove duplicates
     finalBusStopList = removeDuplicates(finalBusStopList);
 
+    setState(() {
+      completed = true;
+    });
+
     print("BusStopList final!");
     finalBusStopList.forEach((element) {
       print("${element.name} ${element.distance}");
@@ -195,7 +221,8 @@ class _TripState extends State<Trip> {
             currentLocation?.longitude ?? 0.0),
         distance: distance,
         duration: minutes,
-        polyLineString: routePolyLine);
+        polyLineString: routePolyLine,
+        currentBusStopIndex: 0);
     busStopDB.fromName = fromName;
     busStopDB.toName = toName;
 
@@ -305,8 +332,7 @@ class _TripState extends State<Trip> {
     if (count < 0) {
       currentPassengerCount = 0;
     } else {
-      DatabaseAPI api = DatabaseAPI();
-      api.updatePassengerCount(await api.getCurrentTrip() ?? '', count);
+      db.updatePassengerCount(await db.getCurrentTrip() ?? '', count);
     }
   }
 
@@ -317,11 +343,14 @@ class _TripState extends State<Trip> {
         {'lat': destination!.latitude, 'lng': destination!.longitude}
             .toString());
     if (result != null) {
+      print("result is not null so proceeding..");
       getCurrentLocation();
+      // currentTripId = (await db.getCurrentTrip())!;
       setProperties(result);
       //db.updateUserCurrentTrip(currentTripId);
     } else {
       print("New data so loading it from google !!!!!!!!!!!!!!");
+      getCurrentLocation();
       print(result);
       await getPolyLinePoints();
       if (isLargeDistance) {
@@ -333,7 +362,6 @@ class _TripState extends State<Trip> {
           onConfirmBtnTap: () => Navigator.pop(context),
         );
       }
-      getCurrentLocation();
     }
   }
 
@@ -373,6 +401,7 @@ class _TripState extends State<Trip> {
     }
     int i = 0;
     busStopMarkers.clear();
+    finalBusStopList = busStopDB.busStopList;
     busStopDB.busStopList.forEach((busStop) {
       print(busStop.lat);
       print(busStop.lng);
@@ -390,8 +419,13 @@ class _TripState extends State<Trip> {
         ),
       );
     });
+    if (fromContinue) {
+      currentTripId = (await db.getCurrentTrip())!;
+      currentPassengerCount = await db.getCurrentPassengerCount(currentTripId);
+    }
     if (!fromContinue) {
-      busStopDB.currentLocationCoordinates = LatLng(0.0, 0.0);
+      busStopDB.currentLocationCoordinates = LatLng(
+          currentLocation?.latitude ?? 0.0, currentLocation?.longitude! ?? 0.0);
       busStopDB.fromName = fromName;
       busStopDB.toName = toName;
       Document doc = await db.addTravelInfoDynamic(busStopDB);
@@ -400,5 +434,70 @@ class _TripState extends State<Trip> {
     setState(() {
       completed = true;
     });
+  }
+
+  Future<void> startServer() async {
+    _server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
+    print('Server running on port: ${_server?.port}');
+
+    // Listen for incoming requests
+    await for (var request in _server!) {
+      // Handle the request
+      print("Got the request");
+      handleRequest(request);
+    }
+  }
+
+  Future<void> stopServer() async {
+    if (_server != null) {
+      await _server?.close(force: true);
+      _server = null;
+      print('Server stopped.');
+    }
+  }
+
+  void handleRequest(HttpRequest request) async {
+    if (request.method == 'POST') {
+      var content;
+      var data;
+      try {
+        // Read the request body
+        content = await utf8.decoder.bind(request).join();
+        data = jsonDecode(content);
+      } catch (e) {
+        // Handle the case where "count" is not provided
+        request.response
+          ..statusCode = HttpStatus.badRequest
+          ..write('Field "count" is missing.')
+          ..close();
+        return;
+      }
+
+      // Check if the "count" field is present in the POST data
+      if (data.containsKey('count')) {
+        final count = data['count'];
+        print('Received count: $count');
+
+        updatePassengerCount(count);
+
+        // Respond to the client
+        request.response
+          ..statusCode = HttpStatus.ok
+          ..write('Successfully received count: $count')
+          ..close();
+      } else {
+        // Handle the case where "count" is not provided
+        request.response
+          ..statusCode = HttpStatus.badRequest
+          ..write('Field "count" is missing.')
+          ..close();
+      }
+    } else {
+      // Handle non-POST requests
+      request.response
+        ..statusCode = HttpStatus.methodNotAllowed
+        ..write('Only POST requests are allowed.')
+        ..close();
+    }
   }
 }

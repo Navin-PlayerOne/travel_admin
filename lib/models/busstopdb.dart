@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:travel_admin/models/model.dart';
 
@@ -11,6 +9,7 @@ class BusStopDB {
   String polyLineString;
   int distance;
   int duration;
+  int currentBusStopIndex;
   late String fromName;
   late String toName;
   late String id;
@@ -22,7 +21,8 @@ class BusStopDB {
       required this.currentLocationCoordinates,
       required this.distance,
       required this.duration,
-      required this.polyLineString});
+      required this.polyLineString,
+      required this.currentBusStopIndex});
 
   factory BusStopDB.fromJson(Map<String, dynamic> json) {
     final List<dynamic> busStopListJson = json['BusStopList'];
@@ -37,25 +37,27 @@ class BusStopDB {
         currentLocationCoordinates: json['CurrentLocationCoordinates'],
         distance: json['distance'],
         duration: json['duration'],
-        polyLineString: json['polyLineString']);
+        polyLineString: json['polyLineString'],
+        currentBusStopIndex: json['currentBusStopIndex']);
   }
 
   factory BusStopDB.fromAppWrite(Map<String, dynamic> json) {
     print("------ busStopDb Appwrite json");
     print(json);
     BusStopDB busStopDB = BusStopDB(
-      from: LatLng(
-          double.parse(json['From']['lat']), double.parse(json['From']['lng'])),
-      to: LatLng(
-          double.parse(json['To']['lat']), double.parse(json['To']['lng'])),
-      busStopList: List<BusStops>.from(
-        json['BusStopList'].map((e) => BusStops.fromAppWrite(e)),
-      ),
-      currentLocationCoordinates: LatLng(0, 0),
-      distance: int.parse(json['distance']),
-      duration: int.parse(json['duration']),
-      polyLineString: json['polyLineString'],
-    );
+        from: LatLng(double.parse(json['From']['lat']),
+            double.parse(json['From']['lng'])),
+        to: LatLng(
+            double.parse(json['To']['lat']), double.parse(json['To']['lng'])),
+        busStopList: List<BusStops>.from(
+          json['BusStopList'].map((e) => BusStops.fromAppWrite(e)),
+        ),
+        currentLocationCoordinates: const LatLng(0, 0),
+        distance: int.parse(json['distance']),  
+        duration: int.parse(json['duration']),
+        polyLineString: json['polyLineString'],
+        currentBusStopIndex: 0);
+    print("operation completed");
     return busStopDB;
   }
 
@@ -68,7 +70,7 @@ class BusStopDB {
       // 'CurrentLocationCoordinates': {'lat': currentLocationCoordinates.latitude,'lng': currentLocationCoordinates.longitude}.toString(),
       'polyLineString': polyLineString,
       'distance': distance,
-      'duration': duration
+      'duration': duration,
     };
     return data;
   }
